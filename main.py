@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from db.session import Base, engine, get_db
 import db.models
 
-from routers import auth, users
+from routers import auth, profiles, users
 
 app = FastAPI(title="Stylometr API")
 
@@ -32,3 +32,4 @@ def health(db: Session = Depends(get_db)):
 
 app.include_router(auth.router)
 app.include_router(users.router)
+app.include_router(profiles.router)

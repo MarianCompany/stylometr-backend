@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import String, Boolean, DateTime, ForeignKey
+from sqlalchemy import String, Boolean, DateTime, ForeignKey, JSON, Integer, Text as SQLText, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from db.session import Base
@@ -33,6 +33,12 @@ class User(Base):
 
     role = relationship("UserRole")
     refresh_tokens = relationship("RefreshToken", back_populates="user")
+    profiles = relationship(
+        "AuthorProfile",
+        foreign_keys="AuthorProfile.user_id",
+        back_populates="user",
+    )
+    texts = relationship("Text", back_populates="user")
 
 
 class RefreshToken(Base):
@@ -49,3 +55,110 @@ class RefreshToken(Base):
     ip_address: Mapped[str | None] = mapped_column(String(45), nullable=True)
 
     user = relationship("User", back_populates="refresh_tokens")
+
+
+class AuthorProfile(Base):
+    __tablename__ = "author_profiles"
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    is_public: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    moderated_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    moderation_status: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    moderation_comment: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    moderated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+    )
+
+    user = relationship(
+        "User",
+        foreign_keys=[user_id],
+        back_populates="profiles",
+    )
+    moderator = relationship(
+        "User",
+        foreign_keys=[moderated_by],
+    )
+    metrics = relationship(
+        "ProfileMetrics",
+        back_populates="profile",
+        uselist=False,
+        cascade="all, delete-orphan",
+        foreign_keys="ProfileMetrics.profile_id",
+    )
+    profile_texts = relationship(
+        "AuthorProfileText",
+        back_populates="profile",
+        cascade="all, delete-orphan",
+    )
+    texts = relationship("Text", secondary="author_profile_texts", viewonly=True)
+
+class ProfileMetrics(Base):
+    __tablename__ = "profile_metrics"
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    profile_id: Mapped[int] = mapped_column(
+        ForeignKey("author_profiles.id"),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+    metrics_version: Mapped[int] = mapped_column(nullable=False, default=1)
+    core_metrics: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    additional_metrics: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+    )
+
+    profile = relationship("AuthorProfile", back_populates="metrics")
+
+
+class Text(Base):
+    __tablename__ = "texts"
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    content: Mapped[str] = mapped_column(SQLText, nullable=False)
+    file_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    char_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+    )
+
+    user = relationship("User", back_populates="texts")
+    profile_links = relationship(
+        "AuthorProfileText",
+        back_populates="text",
+        cascade="all, delete-orphan",
+    )
+
+    @property
+    def short_content(self):
+        return self.content[:200]
+
+
+class AuthorProfileText(Base):
+    __tablename__ = "author_profile_texts"
+    __table_args__ = (UniqueConstraint("profile_id", "text_id", name="uq_profile_text"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    profile_id: Mapped[int] = mapped_column(ForeignKey("author_profiles.id"), nullable=False, index=True)
+    text_id: Mapped[int] = mapped_column(ForeignKey("texts.id"), nullable=False, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+
+    profile = relationship("AuthorProfile", back_populates="profile_texts")
+    text = relationship("Text", back_populates="profile_links")

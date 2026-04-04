@@ -75,3 +75,194 @@ def revoke_all_user_refresh_tokens(db: Session, user_id: int) -> int:
     )
     db.commit()
     return result
+
+
+def create_profile(
+    db: Session,
+    user_id: int,
+    name: str,
+) -> models.AuthorProfile:
+    profile = models.AuthorProfile(
+        user_id=user_id,
+        name=name,
+    )
+    db.add(profile)
+    db.commit()
+    db.refresh(profile)
+    return profile
+
+
+def get_profile_by_id(db: Session, profile_id: int) -> models.AuthorProfile | None:
+    return db.query(models.AuthorProfile).filter(models.AuthorProfile.id == profile_id).first()
+
+
+def get_user_profile_by_id(
+    db: Session,
+    user_id: int,
+    profile_id: int,
+) -> models.AuthorProfile | None:
+    return (
+        db.query(models.AuthorProfile)
+        .filter(
+            models.AuthorProfile.id == profile_id,
+            models.AuthorProfile.user_id == user_id,
+        )
+        .first()
+    )
+
+
+def get_profiles_by_user_id(db: Session, user_id: int) -> list[models.AuthorProfile]:
+    return (
+        db.query(models.AuthorProfile)
+        .filter(models.AuthorProfile.user_id == user_id)
+        .order_by(models.AuthorProfile.created_at.desc())
+        .all()
+    )
+
+
+def update_profile(db: Session, profile: models.AuthorProfile, data: dict) -> models.AuthorProfile:
+    for key, value in data.items():
+        setattr(profile, key, value)
+    db.add(profile)
+    db.commit()
+    db.refresh(profile)
+    return profile
+
+
+def delete_profile(db: Session, profile: models.AuthorProfile) -> None:
+    db.delete(profile)
+    db.commit()
+
+
+def create_profile_metrics(
+    db: Session,
+    profile_id: int,
+    metrics_version: int = 1,
+    core_metrics: dict | None = None,
+    additional_metrics: dict | None = None,
+) -> models.ProfileMetrics:
+    metrics = models.ProfileMetrics(
+        profile_id=profile_id,
+        metrics_version=metrics_version,
+        core_metrics=core_metrics,
+        additional_metrics=additional_metrics,
+    )
+    db.add(metrics)
+    db.commit()
+    db.refresh(metrics)
+    return metrics
+
+
+def get_profile_metrics_by_profile_id(
+    db: Session,
+    profile_id: int,
+) -> models.ProfileMetrics | None:
+    return (
+        db.query(models.ProfileMetrics)
+        .filter(models.ProfileMetrics.profile_id == profile_id)
+        .first()
+    )
+
+
+def update_profile_metrics(
+    db: Session,
+    metrics: models.ProfileMetrics,
+    data: dict,
+) -> models.ProfileMetrics:
+    for key, value in data.items():
+        setattr(metrics, key, value)
+    db.add(metrics)
+    db.commit()
+    db.refresh(metrics)
+    return metrics
+
+
+def delete_profile_metrics(db: Session, metrics: models.ProfileMetrics) -> None:
+    db.delete(metrics)
+    db.commit()
+
+
+def create_text(
+    db: Session,
+    content: str,
+    user_id: int,
+    char_count: int,
+    file_id: int | None = None,
+) -> models.Text:
+    text = models.Text(
+        content=content,
+        user_id=user_id,
+        char_count=char_count,
+        file_id=file_id,
+    )
+    db.add(text)
+    db.commit()
+    db.refresh(text)
+    return text
+
+
+def get_text_by_id(db: Session, text_id: int) -> models.Text | None:
+    return db.query(models.Text).filter(models.Text.id == text_id).first()
+
+
+def delete_text(db: Session, text: models.Text) -> None:
+    db.delete(text)
+    db.commit()
+
+
+def link_text_to_profile(
+    db: Session,
+    profile_id: int,
+    text_id: int,
+) -> models.AuthorProfileText:
+    link = models.AuthorProfileText(profile_id=profile_id, text_id=text_id)
+    db.add(link)
+    db.commit()
+    db.refresh(link)
+    return link
+
+
+def get_profile_texts(db: Session, profile_id: int) -> list[models.Text]:
+    return (
+        db.query(models.Text)
+        .join(models.AuthorProfileText, models.AuthorProfileText.text_id == models.Text.id)
+        .filter(models.AuthorProfileText.profile_id == profile_id)
+        .order_by(models.AuthorProfileText.created_at.desc())
+        .all()
+    )
+
+
+def get_profile_text_by_id(
+    db: Session,
+    profile_id: int,
+    text_id: int,
+) -> models.Text | None:
+    return (
+        db.query(models.Text)
+        .join(models.AuthorProfileText, models.AuthorProfileText.text_id == models.Text.id)
+        .filter(
+            models.AuthorProfileText.profile_id == profile_id,
+            models.Text.id == text_id,
+        )
+        .first()
+    )
+
+
+def get_profile_text_link(
+    db: Session,
+    profile_id: int,
+    text_id: int,
+) -> models.AuthorProfileText | None:
+    return (
+        db.query(models.AuthorProfileText)
+        .filter(
+            models.AuthorProfileText.profile_id == profile_id,
+            models.AuthorProfileText.text_id == text_id,
+        )
+        .first()
+    )
+
+
+def delete_profile_text_link(db: Session, link: models.AuthorProfileText) -> None:
+    db.delete(link)
+    db.commit()
