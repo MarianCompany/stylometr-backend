@@ -1,6 +1,8 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
+from sqlalchemy import text
+from sqlalchemy.orm import Session
 
-from db.session import Base, engine
+from db.session import Base, engine, get_db
 import db.models
 
 from routers import users
@@ -13,8 +15,16 @@ def startup():
     Base.metadata.create_all(bind=engine)
 
 
-@app.get("/ping")
-def ping():
-    return {"status": "ok"}
-
-app.include_router(users.router, prefix="/users", tags=["users"])
+@app.get("/health")
+def health(db: Session = Depends(get_db)):
+    try:
+        db.execute(text("SELECT 1"))
+        return {
+            "status": "ok",
+            "database": "ok"
+        }
+    except Exception:
+        return {
+            "status": "error",
+            "database": "down"
+        }
