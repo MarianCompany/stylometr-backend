@@ -1,4 +1,6 @@
 from datetime import datetime
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 
@@ -33,3 +35,13 @@ class ProfileListItem(BaseModel):
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class ProfileMetricsRead(BaseModel):
+    profile_id: int
+    profile_name: str
+    metrics_version: int
+    core_metrics: dict[str, Any] | None
+    additional_metrics: dict[str, Any] | None
+    created_at: datetime
+    updated_at: datetime

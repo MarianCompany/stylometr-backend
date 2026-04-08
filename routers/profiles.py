@@ -1,11 +1,13 @@
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Depends, File, Form, Response, UploadFile, status
 from sqlalchemy.orm import Session
 
 from db import models
 from db.session import get_db
-from schemas.profiles import ProfileCreate, ProfileListItem, ProfileRead, ProfileUpdate
+from schemas.comparisons import ComparisonResponse
+from schemas.profiles import ProfileCreate, ProfileListItem, ProfileMetricsRead, ProfileRead, ProfileUpdate
 from schemas.texts import ProfileTextCreate, ProfileTextListItem, ProfileTextRead
-from services.auth import get_current_user
+from services.auth import get_current_user, get_current_user_optional
+from services import comparisons as comparisons_service
 from services import profiles as profiles_service
 from services import texts as texts_service
 
@@ -39,6 +41,35 @@ def get_profile(
     current_user: models.User = Depends(get_current_user),
 ):
     return profiles_service.get_profile(db, current_user, profile_id)
+
+
+@router.get("/{profile_id}/metrics", response_model=ProfileMetricsRead)
+def get_profile_metrics(
+    profile_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    return profiles_service.get_profile_metrics(db, current_user, profile_id)
+
+
+@router.post("/{profile_id}/compare", response_model=ComparisonResponse)
+def compare_profile(
+    profile_id: int,
+    text: str | None = Form(default=None),
+    text_id: int | None = Form(default=None),
+    file: UploadFile | None = File(default=None),
+    db: Session = Depends(get_db),
+    current_user: models.User | None = Depends(get_current_user_optional),
+):
+    result = comparisons_service.compare_text_to_profile(
+        db,
+        profile_id,
+        current_user,
+        text=text,
+        file=file,
+        text_id=text_id,
+    )
+    return ComparisonResponse(**result)
 
 
 @router.patch("/{profile_id}", response_model=ProfileRead)

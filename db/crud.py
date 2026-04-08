@@ -201,6 +201,37 @@ def create_text(
     return text
 
 
+def create_text_metrics(
+    db: Session,
+    text_id: int,
+    metrics: dict,
+) -> models.TextMetrics:
+    payload = dict(metrics)
+    payload["text_id"] = text_id
+    record = models.TextMetrics(**payload)
+    db.add(record)
+    db.commit()
+    db.refresh(record)
+    return record
+
+
+def get_text_metrics_by_text_id(db: Session, text_id: int) -> models.TextMetrics | None:
+    return db.query(models.TextMetrics).filter(models.TextMetrics.text_id == text_id).first()
+
+
+def update_text_metrics(
+    db: Session,
+    metrics: models.TextMetrics,
+    data: dict,
+) -> models.TextMetrics:
+    for key, value in data.items():
+        setattr(metrics, key, value)
+    db.add(metrics)
+    db.commit()
+    db.refresh(metrics)
+    return metrics
+
+
 def get_text_by_id(db: Session, text_id: int) -> models.Text | None:
     return db.query(models.Text).filter(models.Text.id == text_id).first()
 
@@ -266,3 +297,23 @@ def get_profile_text_link(
 def delete_profile_text_link(db: Session, link: models.AuthorProfileText) -> None:
     db.delete(link)
     db.commit()
+
+
+def get_profile_ids_by_text_id(db: Session, text_id: int) -> list[int]:
+    results = (
+        db.query(models.AuthorProfileText.profile_id)
+        .filter(models.AuthorProfileText.text_id == text_id)
+        .distinct()
+        .all()
+    )
+    return [profile_id for (profile_id,) in results]
+
+
+def get_profile_text_metrics(db: Session, profile_id: int) -> list[models.TextMetrics]:
+    return (
+        db.query(models.TextMetrics)
+        .join(models.Text, models.TextMetrics.text_id == models.Text.id)
+        .join(models.AuthorProfileText, models.AuthorProfileText.text_id == models.Text.id)
+        .filter(models.AuthorProfileText.profile_id == profile_id)
+        .all()
+    )

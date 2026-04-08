@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Depends
 from sqlalchemy import text
 from sqlalchemy.orm import Session
+from starlette.middleware.cors import CORSMiddleware
 
 from db.session import Base, engine, get_db
 import db.models
@@ -33,3 +34,11 @@ def health(db: Session = Depends(get_db)):
 app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(profiles.router)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)

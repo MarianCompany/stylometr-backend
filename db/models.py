@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import String, Boolean, DateTime, ForeignKey, JSON, Integer, Text as SQLText, UniqueConstraint
+from sqlalchemy import String, Boolean, DateTime, ForeignKey, JSON, Integer, Float, Text as SQLText, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from db.session import Base
@@ -145,10 +145,45 @@ class Text(Base):
         back_populates="text",
         cascade="all, delete-orphan",
     )
+    metrics = relationship(
+        "TextMetrics",
+        back_populates="text",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
 
     @property
     def short_content(self):
         return self.content[:200]
+
+
+class TextMetrics(Base):
+    __tablename__ = "text_metrics"
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    text_id: Mapped[int] = mapped_column(ForeignKey("texts.id"), nullable=False, unique=True, index=True)
+    word_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    sentence_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    avg_word_length: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    avg_sentence_length: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    ttr: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    punctuation_ratio: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    noun_ratio: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    verb_ratio: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    adj_ratio: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    pronoun_ratio: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    service_words_ratio: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    unique_words_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    additional_metrics: Mapped[dict | None] = mapped_column(JSON, nullable=True, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+    )
+
+    text = relationship("Text", back_populates="metrics")
 
 
 class AuthorProfileText(Base):
