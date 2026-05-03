@@ -6,6 +6,7 @@ from starlette.middleware.cors import CORSMiddleware
 from db.session import Base, engine, get_db
 import db.models
 
+from admin.routers import admin_router
 from routers import auth, profiles, users
 
 app = FastAPI(title="Stylometr API")
@@ -34,6 +35,7 @@ def health(db: Session = Depends(get_db)):
 app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(profiles.router)
+app.include_router(admin_router)
 
 app.add_middleware(
     CORSMiddleware,

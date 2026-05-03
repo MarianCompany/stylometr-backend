@@ -1,0 +1,1 @@
+"""Isolated admin API package."""
