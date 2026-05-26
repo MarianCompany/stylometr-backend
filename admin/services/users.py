@@ -66,7 +66,7 @@ def _serialize_user_read(db: Session, user: models.User) -> AdminUserRead:
 def _get_user_or_404(db: Session, user_id: int) -> models.User:
     user = crud.get_user_by_id(db, user_id)
     if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден")
     return user
 
 def list_roles(db: Session) -> list[AdminUserRole]:

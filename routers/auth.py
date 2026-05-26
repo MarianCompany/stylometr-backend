@@ -23,7 +23,7 @@ def register_user(payload: UserRegister, db: Session = Depends(get_db)):
     except ValueError:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Email already registered",
+            detail="Данный e-mail уже занят",
         )
     return user
 
@@ -32,7 +32,7 @@ def register_user(payload: UserRegister, db: Session = Depends(get_db)):
 def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)):
     user = auth_service.authenticate_user(db, payload.email, payload.password)
     if not user or not user.is_active:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Неверные данные для входа")
 
     access_token = auth_service.create_access_token(user.id)
     refresh_token, jti, expires_at = auth_service.create_refresh_token(user.id)
@@ -52,7 +52,7 @@ def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)
 def refresh_access_token(payload: RefreshRequest, db: Session = Depends(get_db)):
     token_payload, token_record = auth_service.verify_refresh_token(db, payload.refresh_token)
     if token_payload.sub != str(token_record.user_id):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Невалидный токен")
     access_token = auth_service.create_access_token(token_record.user_id)
     return AccessTokenResponse(access_token=access_token)
 

@@ -19,6 +19,6 @@ def get_current_admin_user(
     if not _has_admin_role(current_user):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin access required",
+            detail="Недостаточно прав",
         )
     return current_user

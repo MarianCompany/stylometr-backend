@@ -15,7 +15,7 @@ def create_profile_text(
 ) -> models.Text:
     profile = crud.get_user_profile_by_id(db, user.id, profile_id)
     if not profile:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Профиль не найден")
     content = data.content
     text = crud.create_text(
         db,
@@ -39,7 +39,7 @@ def list_profile_texts(
     profile = crud.get_user_profile_by_id(db, user.id, profile_id)
 
     if not profile:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Профиль не найден")
     return crud.get_profile_texts(db, profile.id)
 
 
@@ -51,10 +51,10 @@ def get_profile_text(
 ) -> models.Text:
     profile = crud.get_user_profile_by_id(db, user.id, profile_id)
     if not profile:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Профиль не найден")
     text = crud.get_profile_text_by_id(db, profile.id, text_id)
     if not text or text.user_id != user.id:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Text not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Текст не найден")
     return text
 
 
@@ -66,10 +66,10 @@ def delete_profile_text(
 ) -> None:
     profile = crud.get_user_profile_by_id(db, user.id, profile_id)
     if not profile:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Профиль не найден")
     text = crud.get_profile_text_by_id(db, profile.id, text_id)
     if not text or text.user_id != user.id:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Text not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Текст не найден")
     profile_ids = crud.get_profile_ids_by_text_id(db, text.id)
     link = crud.get_profile_text_link(db, profile.id, text.id)
     if link:

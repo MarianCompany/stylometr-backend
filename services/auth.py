@@ -78,7 +78,7 @@ def decode_token(token: str) -> TokenPayload:
         payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
         return TokenPayload(**payload)
     except JWTError as exc:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token") from exc
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Токен не валиден") from exc
 
 
 def verify_refresh_token(
@@ -87,14 +87,14 @@ def verify_refresh_token(
 ) -> tuple[TokenPayload, models.RefreshToken]:
     payload = decode_token(token)
     if payload.type != "refresh" or not payload.jti:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Токен не валиден")
     token_record = crud.get_refresh_token_by_jti(db, payload.jti)
     if not token_record or token_record.revoked_at is not None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Токен не валиден")
     if token_record.expires_at < datetime.utcnow():
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Токен не валиден")
     if token_record.token_hash != _hash_refresh_token(token):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Токен не валиден")
     return payload, token_record
 
 
@@ -111,14 +111,14 @@ def get_current_user(
 ) -> models.User:
     payload = decode_token(token)
     if payload.type != "access":
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Токен не валиден")
     try:
         user_id = int(payload.sub)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token") from exc
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Токен не валиден") from exc
     user = crud.get_user_by_id(db, user_id)
     if not user or not user.is_active:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Токен не валиден")
     return user
 
 
@@ -130,12 +130,12 @@ def get_current_user_optional(
         return None
     payload = decode_token(token)
     if payload.type != "access":
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Токен не валиден")
     try:
         user_id = int(payload.sub)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token") from exc
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Токен не валиден") from exc
     user = crud.get_user_by_id(db, user_id)
     if not user or not user.is_active:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Токен не валиден")
     return user

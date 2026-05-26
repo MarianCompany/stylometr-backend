@@ -22,7 +22,7 @@ MODERATION_STATUS_REVISION_REQUIRED = "revision_required"
 def _get_profile_or_404(db: Session, profile_id: int) -> models.AuthorProfile:
     profile = crud.get_profile_by_id(db, profile_id)
     if not profile:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Профиль не найден")
     return profile
 
 

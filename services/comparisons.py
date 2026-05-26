@@ -55,17 +55,17 @@ def _load_profile_for_comparison(
     profile = crud.get_profile_by_id(db, profile_id)
 
     if not profile:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Профиль не найден")
 
     if user is None:
         if not profile.is_public:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Профиль не найден")
         return profile
 
     if profile.user_id == user.id or profile.is_public:
         return profile
 
-    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found")
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Профиль не найден")
 
 
 def _load_profile_metrics(db: Session, profile: models.AuthorProfile) -> models.ProfileMetrics:
@@ -84,21 +84,21 @@ def _ensure_profile_ready(metrics: models.ProfileMetrics) -> None:
     texts_with_metrics = core.get("texts_with_metrics", 0)
 
     if text_count == 0 or texts_with_metrics == 0:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Profile has no metrics")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Профиль не содержит метрик")
 
 
 def _decode_upload(file: UploadFile) -> str:
     content = file.file.read()
 
     if not content:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Uploaded file is empty")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Загруженный файл пуст")
 
     try:
         return content.decode("utf-8")
     except UnicodeDecodeError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="File must be UTF-8 text",
+            detail="Файл должен быть в кодировке UTF-8",
         ) from exc
 
 
@@ -205,7 +205,7 @@ def _align_vectors(
     if len(keys) < 2:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Not enough shared features to compare",
+            detail="Недостаточно общих признаков для сравнения",
         )
 
     profile_values = [profile_vector[key] for key in keys]
@@ -221,7 +221,7 @@ def _cosine_similarity(a: Iterable[float], b: Iterable[float]) -> float:
     if len(a_values) < 2 or len(b_values) < 2:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Not enough shared features for cosine similarity",
+            detail="Недостаточно общих признаков для вычисления косинусного сходства",
         )
 
     dot = 0.0
@@ -408,20 +408,20 @@ def compare_text_to_profile(
     if source_count != 1:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Provide exactly one of text, file, or text_id",
+            detail="Передайте ровно один источник текста: text, file или text_id",
         )
 
     if user is None:
         if file is not None or text_id is not None:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Authentication required for this input type",
+                detail="Для этого типа ввода требуется авторизация",
             )
 
         if text is None:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Text is required",
+                detail="Текст обязателен",
             )
 
     profile = _load_profile_for_comparison(db, profile_id, user)
@@ -437,7 +437,7 @@ def compare_text_to_profile(
         if user is None:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Authentication required for text_id",
+                detail="Для использования text_id требуется авторизация",
             )
 
         stored_text = crud.get_text_by_id(db, text_id)
@@ -445,7 +445,7 @@ def compare_text_to_profile(
         if not stored_text or stored_text.user_id != user.id:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Text not found",
+                detail="Текст не найден",
             )
 
         candidate_text_id = stored_text.id
@@ -465,7 +465,7 @@ def compare_text_to_profile(
         if user is None:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Authentication required for file upload",
+                detail="Для загрузки файла требуется авторизация",
             )
 
         candidate_source_type = "file"
@@ -480,7 +480,7 @@ def compare_text_to_profile(
         if not candidate_content.strip():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Text is empty",
+                detail="Текст пуст",
             )
 
         metrics_payload = extract_text_metrics(candidate_content)
@@ -526,12 +526,12 @@ def compare_text_to_profile(
     if len(profile_text_bundles) < 2:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Not enough profile texts for Burrows's Delta",
+            detail="Недостаточно текстов в профиле для вычисления дельты Берроуза",
         )
 
     if len(profile_text_bundles) < 3:
         delta_warnings.append(
-            "Burrows's Delta may be unreliable with fewer than 3 profile texts",
+            "Дельта Берроуза может быть ненадёжна при менее чем 3 текстах в профиле",
         )
 
     delta_features, delta_means, delta_stds = _build_delta_stats(
@@ -541,7 +541,7 @@ def compare_text_to_profile(
     if not delta_features:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Not enough function-word features for Burrows's Delta",
+            detail="Недостаточно признаков служебных слов для вычисления дельты Берроуза",
         )
 
     burrows_delta = _burrows_delta_from_profile_stats(
@@ -587,7 +587,7 @@ def compare_text_to_profile(
     }
 
     if not candidate_content.strip():
-        warnings.append("Candidate text is empty")
+        warnings.append("Текст-кандидат пуст")
 
     warnings.extend(delta_warnings)
 
@@ -607,4 +607,3 @@ def compare_text_to_profile(
         "warnings": warnings or None,
         "analyzed_at": datetime.utcnow(),
     }
-
