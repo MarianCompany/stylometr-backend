@@ -67,6 +67,8 @@ def _aggregate_additional_metrics(
     top_word_counts: dict[str, float] = {}
     case_counts: dict[str, float] = {}
     tense_counts: dict[str, float] = {}
+    pos_bigram_counts: dict[str, float] = {}
+    pos_trigram_counts: dict[str, float] = {}
 
     approximate_keys = []
 
@@ -79,8 +81,17 @@ def _aggregate_additional_metrics(
         _merge_counts(pos_counts, _get_additional_dict(metrics, "parts_of_speech_distribution"), word_count)
         _merge_counts(top_word_counts, _get_additional_dict(metrics, "top_word_frequencies"), word_count)
 
-        # These distributions are normalized by unknown denominators in text metrics.
-        # Approximate them using word_count as weight to avoid silent zeroing.
+        _merge_counts(
+            pos_bigram_counts,
+            _get_additional_dict(metrics, "pos_bigram_frequencies"),
+            word_count,
+        )
+        _merge_counts(
+            pos_trigram_counts,
+            _get_additional_dict(metrics, "pos_trigram_frequencies"),
+            word_count,
+        )
+
         _merge_counts(punctuation_counts, _get_additional_dict(metrics, "punctuation_distribution"), word_count)
         _merge_counts(case_counts, _get_additional_dict(metrics, "case_distribution"), word_count)
         _merge_counts(tense_counts, _get_additional_dict(metrics, "verb_tense_distribution"), word_count)
@@ -91,14 +102,21 @@ def _aggregate_additional_metrics(
         approximate_keys.append("case_distribution")
     if tense_counts:
         approximate_keys.append("verb_tense_distribution")
+    if pos_bigram_counts:
+        approximate_keys.append("pos_bigram_frequencies")
+    if pos_trigram_counts:
+        approximate_keys.append("pos_trigram_frequencies")
 
     function_word_frequencies = _normalize_counts(function_word_counts)
     punctuation_distribution = _normalize_counts(punctuation_counts)
     parts_of_speech_distribution = _normalize_counts(pos_counts)
     case_distribution = _normalize_counts(case_counts)
     verb_tense_distribution = _normalize_counts(tense_counts)
+    pos_bigram_frequencies = _normalize_counts(pos_bigram_counts)
+    pos_trigram_frequencies = _normalize_counts(pos_trigram_counts)
 
     top_word_counts = _top_n_from_counts(top_word_counts, TOP_WORDS_LIMIT)
+
     if top_word_counts and total_word_count > 0:
         top_word_frequencies = {
             key: value / total_word_count for key, value in top_word_counts.items()
@@ -114,11 +132,14 @@ def _aggregate_additional_metrics(
         "top_word_frequencies": top_word_frequencies,
         "case_distribution": case_distribution,
         "verb_tense_distribution": verb_tense_distribution,
+        "pos_bigram_frequencies": pos_bigram_frequencies,
+        "pos_trigram_frequencies": pos_trigram_frequencies,
         "aggregation_meta": {
             "top_words_limit": TOP_WORDS_LIMIT,
             "approximate_distributions": approximate_keys,
         },
     }
+
     return additional_metrics, approximate_keys
 
 
@@ -127,6 +148,7 @@ def aggregate_profile_metrics(
     texts_total: int,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     texts_with_metrics = len(text_metrics)
+
     if texts_with_metrics == 0:
         core_metrics = {
             "metrics_version": METRICS_VERSION,
@@ -149,6 +171,7 @@ def aggregate_profile_metrics(
                 "approx_ttr": True,
             },
         }
+
         additional_metrics = {
             "version": METRICS_VERSION,
             "function_word_frequencies": {},
@@ -157,11 +180,14 @@ def aggregate_profile_metrics(
             "top_word_frequencies": {},
             "case_distribution": {},
             "verb_tense_distribution": {},
+            "pos_bigram_frequencies": {},
+            "pos_trigram_frequencies": {},
             "aggregation_meta": {
                 "top_words_limit": TOP_WORDS_LIMIT,
                 "approximate_distributions": [],
             },
         }
+
         return core_metrics, additional_metrics
 
     total_word_count = sum(metrics.word_count or 0 for metrics in text_metrics)
@@ -171,16 +197,31 @@ def aggregate_profile_metrics(
     avg_word_length = _weighted_avg(
         [(metrics.avg_word_length, metrics.word_count or 0) for metrics in text_metrics]
     )
+
     avg_sentence_length = _weighted_avg(
         [(metrics.avg_sentence_length, metrics.sentence_count or 0) for metrics in text_metrics]
     )
+
     punctuation_ratio = _weighted_avg(
         [(metrics.punctuation_ratio, metrics.word_count or 0) for metrics in text_metrics]
     )
-    noun_ratio = _weighted_avg([(metrics.noun_ratio, metrics.word_count or 0) for metrics in text_metrics])
-    verb_ratio = _weighted_avg([(metrics.verb_ratio, metrics.word_count or 0) for metrics in text_metrics])
-    adj_ratio = _weighted_avg([(metrics.adj_ratio, metrics.word_count or 0) for metrics in text_metrics])
-    pronoun_ratio = _weighted_avg([(metrics.pronoun_ratio, metrics.word_count or 0) for metrics in text_metrics])
+
+    noun_ratio = _weighted_avg(
+        [(metrics.noun_ratio, metrics.word_count or 0) for metrics in text_metrics]
+    )
+
+    verb_ratio = _weighted_avg(
+        [(metrics.verb_ratio, metrics.word_count or 0) for metrics in text_metrics]
+    )
+
+    adj_ratio = _weighted_avg(
+        [(metrics.adj_ratio, metrics.word_count or 0) for metrics in text_metrics]
+    )
+
+    pronoun_ratio = _weighted_avg(
+        [(metrics.pronoun_ratio, metrics.word_count or 0) for metrics in text_metrics]
+    )
+
     service_words_ratio = _weighted_avg(
         [(metrics.service_words_ratio, metrics.word_count or 0) for metrics in text_metrics]
     )
@@ -190,7 +231,10 @@ def aggregate_profile_metrics(
     else:
         ttr = _weighted_avg([(metrics.ttr, metrics.word_count or 0) for metrics in text_metrics])
 
-    additional_metrics, approximate_keys = _aggregate_additional_metrics(text_metrics, total_word_count)
+    additional_metrics, approximate_keys = _aggregate_additional_metrics(
+        text_metrics,
+        total_word_count,
+    )
 
     core_metrics = {
         "metrics_version": METRICS_VERSION,
@@ -220,11 +264,13 @@ def aggregate_profile_metrics(
             },
         },
     }
+
     return core_metrics, additional_metrics
 
 
 def recalculate_profile_metrics(db: Session, profile_id: int) -> models.ProfileMetrics:
     profile = crud.get_profile_by_id(db, profile_id)
+
     if not profile:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found")
 
@@ -245,11 +291,16 @@ def recalculate_profile_metrics(db: Session, profile_id: int) -> models.ProfileM
     core_metrics, additional_metrics = aggregate_profile_metrics(text_metrics, texts_total)
 
     existing = crud.get_profile_metrics_by_profile_id(db, profile_id)
+
     if existing:
         return crud.update_profile_metrics(
             db,
             existing,
-            {"metrics_version": METRICS_VERSION, "core_metrics": core_metrics, "additional_metrics": additional_metrics},
+            {
+                "metrics_version": METRICS_VERSION,
+                "core_metrics": core_metrics,
+                "additional_metrics": additional_metrics,
+            },
         )
 
     return crud.create_profile_metrics(
@@ -268,5 +319,6 @@ def recalculate_profiles_for_text(db: Session, text_id: int) -> None:
         .distinct()
         .all()
     )
+
     for (profile_id,) in profile_ids:
         recalculate_profile_metrics(db, profile_id)
